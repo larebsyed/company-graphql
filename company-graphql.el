@@ -49,6 +49,9 @@
   :tag "company-graphql"
   :group 'company)
 
+(defconst company-graphql-hasura-admin-secret "my admin secret key"
+  "Admin Password")
+
 (defconst company-graphql-schema-root "__GRAPHQL_SCHEMA_ROOT__"
   "Schema Root.")
 
@@ -82,12 +85,12 @@
   (interactive)
   (or company-graphql-schema-types-cache
       (progn
-	(setq company-graphql-schema-introspect-query (company-graphql-schema-introspect-content))
-	(setq company-graphql-schema-types-cache nil)
-	(setq company-graphql-schema-url (or graphql-url (read-string "GraphQL URL: ")))
-	(company-graphql-introspection)
-	(company-graphql-schema-types)
-	t)))
+	      (setq company-graphql-schema-introspect-query (company-graphql-schema-introspect-content))
+	      (setq company-graphql-schema-types-cache nil)
+	      (setq company-graphql-schema-url (or graphql-url (read-string "GraphQL URL: ")))
+	      (company-graphql-introspection)
+	      (company-graphql-schema-types)
+	      t)))
 
 (defun company-graphql-schema-introspect-content ()
   "Read the content of introspection graphql file."
@@ -99,30 +102,31 @@
 (defun company-graphql-introspection ()
   "Setup company graphql mode with server url, introspection graphql, and json schema."
   (let* ((query-operation-spec company-graphql-schema-introspect-query)
-	 (query-operation-name nil)
-	 (query-variables nil)
-	 (request-list (list (cons 'query query-operation-spec)
-			     (cons 'operationName query-operation-name)
-			     (cons 'variables query-variables)))
-	 (response-buffer company-graphql-schema-introspect-buffer)
-	 (response-complete
-	  '(lambda (&rest _)
-	     (message (format "%s%s" company-graphql-schema-url
-			      (if (and (not (null query-operation-name))
-				       (not (string-equal query-operation-name "")))
-				  (format "?operationName=%s" query-operation-name)
-				"")))))
-	 (response-result
-	  (request company-graphql-schema-url
-		   :type "POST"
-		   :params request-list
-		   :data (json-encode request-list)
-		   :headers '(("Content-Type" . "application/json"))
-		   :parser 'json-read
-		   :sync t
-		   :complete response-complete
-		   ))
-	 (response-body (request-response-data response-result)))
+	       (query-operation-name nil)
+         (header-list `(("Content-Type" . "application/json") ("X-Hasura-Admin-Secret" . ,company-graphql-hasura-admin-secret)))
+	       (query-variables nil)
+	       (request-list (list (cons 'query query-operation-spec)
+			                       (cons 'operationName query-operation-name)
+			                       (cons 'variables query-variables)))
+	       (response-buffer company-graphql-schema-introspect-buffer)
+	       (response-complete
+	        '(lambda (&rest _)
+	           (message (format "%s%s" company-graphql-schema-url
+			                        (if (and (not (null query-operation-name))
+				                               (not (string-equal query-operation-name "")))
+				                          (format "?operationName=%s" query-operation-name)
+				                        "")))))
+	       (response-result
+	        (request company-graphql-schema-url
+		               :type "POST"
+		               :params request-list
+		               :data (json-encode request-list)
+		               :headers header-list
+		               :parser 'json-read
+		               :sync t
+		               :complete response-complete
+		               ))
+	       (response-body (request-response-data response-result)))
     (company-graphql-jsonify-hashtable response-body response-buffer)
     (message response-buffer)))
 
